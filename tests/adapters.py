@@ -4,6 +4,22 @@ import os
 from typing import Any, Callable, Literal
 
 import torch
+from cs336_alignment.data import get_packed_sft_dataset
+from cs336_alignment.data import iterate_batches
+from cs336_alignment.dpo import compute_per_instance_dpo_loss
+from cs336_alignment.grpo import compute_entropy
+from cs336_alignment.grpo import compute_grpo_clip_loss
+from cs336_alignment.grpo import compute_group_normalized_rewards
+from cs336_alignment.grpo import compute_naive_policy_gradient_loss
+from cs336_alignment.grpo import compute_policy_gradient_loss
+from cs336_alignment.grpo import get_response_log_probs
+from cs336_alignment.grpo import grpo_microbatch_train_step
+from cs336_alignment.grpo import masked_mean
+from cs336_alignment.grpo import masked_normalize
+from cs336_alignment.grpo import sft_microbatch_train_step
+from cs336_alignment.metrics import parse_gsm8k_response
+from cs336_alignment.metrics import parse_mmlu_response
+from cs336_alignment.tokenization import tokenize_prompt_and_output
 from torch import Tensor
 from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizerBase
@@ -31,8 +47,6 @@ def run_tokenize_prompt_and_output(
             "response_mask": torch.Tensor of shape (batch_size, max(prompt_and_output_lens) - 1):
                 a mask on the response tokens in `labels`.
     """
-    from cs336_alignment.tokenization import tokenize_prompt_and_output
-
     return tokenize_prompt_and_output(prompt_strs, output_strs, tokenizer)
 
 
@@ -79,8 +93,6 @@ def run_compute_group_normalized_rewards(
                 You may choose what you wish to log here
                 (some statistics of the rewards, etc.).
     """
-    from cs336_alignment.grpo import compute_group_normalized_rewards
-
     return compute_group_normalized_rewards(
         reward_fn,
         rollout_responses,
@@ -93,8 +105,6 @@ def run_compute_group_normalized_rewards(
 
 def run_compute_entropy(logits: torch.Tensor) -> torch.Tensor:
     """Get the entropy of the logits (i.e., entropy of the final dimension)."""
-    from cs336_alignment.grpo import compute_entropy
-
     return compute_entropy(logits)
 
 
@@ -127,8 +137,6 @@ def run_get_response_log_probs(
                 we have not masked out the token indices corresponding to the prompt
                 or padding; that is done in the train loop.
     """
-    from cs336_alignment.grpo import get_response_log_probs
-
     return get_response_log_probs(model, input_ids, labels, return_token_entropy)
 
 
@@ -148,8 +156,6 @@ def run_compute_naive_policy_gradient_loss(
         torch.Tensor of shape (batch_size, sequence_length): 
             the policy gradient per-token loss.
     """
-    from cs336_alignment.grpo import compute_naive_policy_gradient_loss
-
     return compute_naive_policy_gradient_loss(raw_rewards_or_advantages, policy_log_probs)
 
 
@@ -177,8 +183,6 @@ def run_compute_grpo_clip_loss(
             dict[str, torch.Tensor]: metadata for the GRPO-Clip loss 
                 (used to compute clip fraction).
     """
-    from cs336_alignment.grpo import compute_grpo_clip_loss
-
     return compute_grpo_clip_loss(advantages, policy_log_probs, old_log_probs, cliprange)
 
 
@@ -193,8 +197,6 @@ def run_compute_policy_gradient_loss(
     """
     Wrapper that delegates to the appropriate policy gradient loss function above.
     """
-    from cs336_alignment.grpo import compute_policy_gradient_loss
-
     return compute_policy_gradient_loss(
         policy_log_probs,
         loss_type,
@@ -221,8 +223,6 @@ def run_masked_mean(tensor: torch.Tensor, mask: torch.Tensor, dim: int | None = 
         torch.Tensor, the mean of the tensor along the specified
             dimension, considering only the elements with mask value 1.
     """
-    from cs336_alignment.grpo import masked_mean
-
     return masked_mean(tensor, mask, dim)
 
 def run_sft_microbatch_train_step(
@@ -233,8 +233,6 @@ def run_sft_microbatch_train_step(
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
     """Compute the policy gradient loss and backprop its gradients for a microbatch.
     """
-    from cs336_alignment.grpo import sft_microbatch_train_step
-
     return sft_microbatch_train_step(
         policy_log_probs,
         response_mask,
@@ -279,8 +277,6 @@ def run_grpo_microbatch_train_step(
         tuple[torch.Tensor, dict[str, torch.Tensor]]: 
             the policy gradient loss and its metadata.
     """
-    from cs336_alignment.grpo import grpo_microbatch_train_step
-
     return grpo_microbatch_train_step(
         policy_log_probs,
         response_mask,
@@ -315,8 +311,6 @@ def run_masked_normalize(
         torch.Tensor, the normalized sum, where masked elements
             (mask=0) don't contribute to the sum.
     """
-    from cs336_alignment.grpo import masked_normalize
-
     return masked_normalize(tensor, mask, dim, normalize_constant)
 
 
@@ -353,8 +347,6 @@ def get_packed_sft_dataset(
         "input_ids" contains the token IDs for the language modeling inputs, and "labels" contains
         the token IDs for the language modeling labels.
     """
-    from cs336_alignment.data import get_packed_sft_dataset
-
     return get_packed_sft_dataset(tokenizer, dataset_path, seq_length, shuffle)
 
 
@@ -378,8 +370,6 @@ def run_iterate_batches(
     Returns:
         Iterable over batches, where each batch has size `batch_size`.
     """
-    from cs336_alignment.data import iterate_batches
-
     return iterate_batches(dataset, batch_size, shuffle)
 
 
@@ -406,8 +396,6 @@ def run_parse_mmlu_response(
         str (one of "A", "B", "C", or "D") if the model output can be parsed into a prediction,
         else None.
     """
-    from cs336_alignment.metrics import parse_mmlu_response
-
     return parse_mmlu_response(mmlu_example, model_output)
 
 
@@ -425,8 +413,6 @@ def run_parse_gsm8k_response(
         str with the predicted numeric answer if the model output can be parsed into a prediction,
         else None.
     """
-    from cs336_alignment.metrics import parse_gsm8k_response
-
     return parse_gsm8k_response(model_output)
 
 
@@ -462,8 +448,6 @@ def run_compute_per_instance_dpo_loss(
     Returns:
         torch.Tensor with the DPO loss for this example.
     """
-    from cs336_alignment.dpo import compute_per_instance_dpo_loss
-
     return compute_per_instance_dpo_loss(
         lm,
         lm_ref,
