@@ -4,7 +4,7 @@ import os
 from typing import Any, Callable, Literal
 
 import torch
-from cs336_alignment.data import get_packed_sft_dataset
+from cs336_alignment.data import get_packed_sft_dataset as _get_packed_sft_dataset
 from cs336_alignment.data import iterate_batches
 from cs336_alignment.dpo import compute_per_instance_dpo_loss
 from cs336_alignment.grpo import compute_entropy
@@ -347,7 +347,7 @@ def get_packed_sft_dataset(
         "input_ids" contains the token IDs for the language modeling inputs, and "labels" contains
         the token IDs for the language modeling labels.
     """
-    return get_packed_sft_dataset(tokenizer, dataset_path, seq_length, shuffle)
+    return _get_packed_sft_dataset(tokenizer, dataset_path, seq_length, shuffle)
 
 
 def run_iterate_batches(
